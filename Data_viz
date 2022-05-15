@@ -1,0 +1,55 @@
+#Required Packages
+library(readr) #To read the data files
+library(dplyr)    #To manipulate the data
+library(magrittr) #To the structuring and sequencing of Data
+library(ggplot2)  #For the mapping of variables
+library(EnvStats) #To perform statistical Analysis
+library(formattable) #Generic function to create format table object
+library(tidyr)  #Tidy Messy Data
+library(plotly)  #Drawing plots
+library(ggfittext) # geom to fit text inside a box.
+library(extrafont) #embedding fonts 
+library(plyr)  # sort data structure
+library(scales) # determine  breaks and labels for axes and legends.
+
+
+#Importing data set using readr package 
+data_new<-read.csv("historical_emissions.csv", skip = 1)
+#For making it tidy and easy to understand pivot longer function of tidyr package is being used to convert columns into rows or  "lengthens" data, increasing the number of rows and decreasing the number of columns. 
+data_p<-data_new%>%pivot_longer(cols = 2:15, names_to = "Sector", values_to = "Co2_emissions")
+#Rename the variable as Country
+names(data_p)[1]<-"Country"
+#Factor variable
+data_p$Sector<-data_p$Sector%>%factor(levels = c("Agriculture","Building","Bunker.Fuels", "Electricity.Heat","Energy","Fugitive.Emissions","Industrial.Processes","Land.Use.Change.and.Forestry", "Manufacturing.Construction","Other.Fuel.Combustion","Total.excluding.LUCF","Total.including.LUCF", "Transportation","Waste"),labels = c("Agriculture","Building","Bunker Fuels","Electricity and Heat","Energy","Fugitive Emissions","Industrial Processes","Land Use Change and Forestry","Manufacturing Construction","Other Fuel Combustion","Total excluding LUCF","Total including LUCF", "Transportation","Waste"))
+
+#creating object for storing data and select useful variable
+emission_data<-data_p%>%select("Country","Sector", "Co2_emissions")
+#Filtering sectors which are contributing in co2 emissions 
+emission_data<-emission_data%>%dplyr::filter(Sector=="Agriculture"| Sector=="Fugitive Emissions" | Sector== "Energy"               
+                                   | Sector=="Electricity and Heat"| Sector=="Industrial Processes" | Sector=="Manufacturing Construction"      
+                                   | Sector=="Transportation" ) 
+#Sub-setting data frame for reconstructing 
+emission_data<-emission_data[1:70,]
+# storing number value variable as numeric variable and extracting white spaces and other symbols 
+emission_data$Co2_emissions<-as.numeric(gsub("[\\%,]","", emission_data$Co2_emissions))
+# Using ggplot2 package for plotting bar graph effectively
+# original images as some issue with it, for making it easy to understated for audience, i plotted bar graph where x axis shows the name of top 10 countries which have high co2 emissions and y axis repressing the percentage of co2 emissions in metric tonnes, moreover scaling is used for different sectors generating co2 emissions. 
+plot_new<-ggplot(emission_data, aes(x = reorder(Country, -Co2_emissions), y = Co2_emissions, fill = Sector,order = -as.numeric(Sector))) + geom_bar(stat = "identity")+ theme_bw() +
+  geom_col(position = "stack")+scale_y_continuous(breaks=c(0,2,4,6,8,10,12,14, 16, 18, 20,22,24,26,28,30),labels = dollar_format(suffix = "%", prefix = ""))+labs(title="The Top 10 GHG Emitters Contribute Over 65% of Global Emissions", 
+                                    subtitle="Camparing rest of world with top 10 GHG emitting countries", 
+                                    caption="Source: World Resources Institute 2018")+ xlab("Countires") + ylab("Co2 emiiting in percentage") +theme_gray()+ theme(axis.text.x =
+                   element_text(size  = 10,
+                                angle = 45,
+                                hjust = 1,
+                                vjust = 1))+ theme(axis.text.y =  
+                   element_text(size  = 10,
+                                hjust = 1,
+                                vjust = 1))+theme(axis.title = element_text(size = 13)) +theme(axis.line = element_line(size=1, colour = "black"), panel.border = element_blank())
+      
+  
+# Modify components of a theme
+reconstruction<-plot_new+ theme(
+  plot.title = element_text(color = "Black", size = 14, face = "bold"),
+  plot.subtitle = element_text(color = "blue"),
+  plot.caption = element_text(color = "Black", face = "italic")
+)
