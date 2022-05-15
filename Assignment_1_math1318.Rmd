@@ -1,0 +1,296 @@
+---
+title: "Math1318_Time Series_Assignment_1"
+output: html_document
+date: '2022-03-25'
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem statement:
+
+Analyzing the changes in the closing price of a share in ASX available here Download here  data set is composed of 144 observations out of a possible 252 trading days in a year and all the points are collected in the same year and on consecutive trading days)
+
+## Table of contents:
+
+1.  Calling important libraries
+2.  Inserting data and converting into time series
+3.  A descriptive analysis to know the data and inform further modelling
+4.  Looking for 1- Trend; 2- Seasonality; 3- Changing variance; 4- Behavior; 5- Change point.
+5.  Fitting different models linear, quadratic, seasonal and harmonic
+6.  Conclusion: Interpretation of result.
+
+# Important libraries
+
+```{r}
+library(readr)  #reading csv file
+library(TSA)    # for time series data
+library(tseries) # for Automatic Time Series Forecasting: 
+library(forecast) # for Forecasting
+
+```
+
+## Processing data into R
+
+```{r}
+# Reading the file in R
+ASX <- read.csv("assignment1Data2022.csv")
+
+# Checking the class of the dataset
+class(ASX)
+
+```
+
+```{r}
+ASX1 <- ts(ASX$x)
+acf(ASX1, main = "ACF plot")
+ASX1 <- ts(ASX$x, frequency=7)
+#acf(ASX1, main = "ACF of standardized residuals.")
+# Making sure the data is a class of time series
+class(ASX1)
+summary(ASX1)
+
+```
+Used acf plot for finding frequncy, the wave is repeating after each 7 lags. so considering frequency=7 
+
+## Looking for-->  1- Trend; 2- Seasonality; 3- Changing variance; 4- Behavior; 5- Change point.
+
+
+```{r}
+acf(ASX1, main = "ACF of standardized residuals.")
+# Making sure the data is a class of time series
+class(ASX1)
+summary(ASX1)
+# using Decomposition for a cleaner way to understand trends.
+# when we look at the plots, its quite clear that observations are different at particular time , so data is not seasonal. It a cyclical 
+#checking trends and seasnality after decomping
+ts_asx = ts(ASX, frequency = 7)
+decompose_asx = decompose(ts_asx, "additive")
+plot(as.ts(decompose_asx$seasonal))
+plot(as.ts(decompose_asx$trend))
+plot(as.ts(decompose_asx$random))
+plot(decompose_asx)
+
+```
+
+As we can see there is no clear trend (no proper ups and downs) , no seasonality as data is cyclical, changing behavior suddenly stars decreasing, no moving average and change in variance we can observe.
+
+```{r}
+
+# plotting time series graph
+plot(ASX1,col=c("blue"),type='o',ylab='changes in the closing price of a share',xlab='Time(days)', main = 'Changes in the closing price of a share')
+legend( "bottomleft",lty=1, bty = "n" ,text.width = 12, col=c("blue"),  c(" Change in prices"))
+#In above Figure 1, we observe considerable variation in closed price. For few days prices were constatant then it starts fluctuating.
+#For the analysis, we are interested in consecutive days are related
+plot(y=ASX1,x=zlag(ASX1),ylab="closing price of a share", xlab='Total days in one year data', main = "changes in the closing price of a share")
+```
+
+# Finding correlation
+
+```{r}
+y = ASX1    #storing value in variable
+# assign the data
+x = zlag(ASX1)       # Generate first lag of the series
+index = 2:length(x)    # Create an index to get rid of the first NA value in x
+cor(y[index],x[index]) # Calculate correlation between numerical values inx and y
+```
+
+*we are getting co relation is 0.9678, can say variables are closely related, sharing strong relationship.
+ 
+
+```
+
+# Fitting linear model:
+
+```{r}
+
+#Now we progress to construct and interpret the time series by use least squares to fit a linear time trend to this time series.
+lmodel = lm(ASX1~time(ASX1))
+summary(lmodel)
+# R-squaared is very less, so we need to look for other model.
+plot(ASX1, ylab='Closing price',xlab='Time in days',type='o', main = "Fitted linear trend model")
+abline(lmodel)
+# Residual analysis
+res.lmodel = rstudent(lmodel)
+
+#x11() # Use this for Mac computers
+par(mfrow=c(2,2))
+plot(y = res.lmodel, x = as.vector(time(ASX1)),xlab = 'Time in days', ylab='Standardized Residuals',type='l',main = "Standardised residuals from linear model.")
+hist(res.lmodel,xlab='Standardized Residuals', main = "Histogram of standardised residuals.") # for checking normality
+qqnorm(y=res.lmodel, main = "QQ plot of standardised residuals.") #used to find the type of distribution for a random variable
+qqline(y=res.lmodel, col = 2, lwd = 1, lty = 2) #quantile-quantile plot which passes through the probs quantiles, by default the first and third quartiles. 
+shapiro.test(res.lmodel)
+acf(res.lmodel, main = "ACF of standardized residuals.")
+# pacf(res.lmodel, main = "PACF of standardized residuals.")
+par(mfrow=c(1,1))
+# Standardized residuals are saved and further fitted to the time series plot
+res.lmodel = rstudent(lmodel)
+plot(y = res.lmodel, x = as.vector(time(ASX1)),xlab = 'Time in days',type='o', ylab='Standardized Residuals',main = "Residuals of linear trend model")
+
+```
+
+ Interpretation of linear model:
+
+* P value of the linear model suggest that the model is significant as the p vale is less than 0.05, however being very close to zero also means that we need to reject the null hypotheses. Hence, we look at the r-squared value 0.4513,  underfitted model, its suggest that the model is partial significant.
+* Here we can see, by standarised residuals there is no trend, no seasonality amd histrogram  does not have normalized bars. Looking at ACF, every lag is significant, so we can say this linear model is insignificant.we need to look for other models.
+
+```
+
+# Fitting Quadratic Model
+
+```{r}
+# let's  apply and interpret the time series by least squares approach to fit a quadratic time trend to this time series data.
+
+t = time(ASX1)
+t2 = t^2
+model.ASX1.qa = lm(ASX1~ t + t2) 
+summary(model.ASX1.qa)
+
+#P value of the quadratic model indicates that the model is significant as the p vale is less than 0.05, however being very close to zero also means that we need to reject the null hypotheses. Hence, we look at the r squared value 0.8807, its suggest that the model is more significant than linear model
+plot(ts(fitted(model.ASX1.qa)), ylim = c(min(c(fitted(model.ASX1.qa),
+                                                as.vector(ASX1))), max(c(fitted(model.ASX1.qa),as.vector(ASX1)))),
+     ylab='Closed price' , main = "changes in the closing price of a share", type="l",lty=2,col="Green")
+lines(as.vector(ASX1),type="o")
+
+## Residual analysis
+#data points above the line, the residual is positive, and for data points below the line, the residual is negative. The closer a data point's residual is to 0, the better the fit.
+res.model.ASX1.qa = rstudent(model.ASX1.qa)
+# win.graph(width=4.875, height=2.5,pointsize=8) # Use this for Windows computers
+#x11() # Use this for Mac computers
+par(mfrow=c(2,2))
+plot(y = res.model.ASX1.qa, x = as.vector(time(ASX1)),xlab = 'Time in days', ylab='Standardized Residuals',type='l',main = "Standardised residuals from quadratic model.")
+
+hist(res.model.ASX1.qa,xlab='Standardized Residuals', main = "Histogram of standardised residuals.")
+qqnorm(y=res.model.ASX1.qa, main = "QQ plot of standardised residuals.")
+qqline(y=res.model.ASX1.qa, col = 2, lwd = 1, lty = 2)  #"QQ line of standardised residuals")
+shapiro.test(res.model.ASX1.qa)  # shapiro of standardised residuals")
+#
+#If the Sig. value of the Shapiro-Wilk Test is greater than 0.05, the data is normal. If it is below 0.05, the data significantly deviate from a normal distribution.
+acf(res.model.ASX1.qa, main = "ACF of standardized residuals.")
+pacf(res.model.ASX1.qa, main = "PACF of standardized residuals.")
+par(mfrow=c(1,1))
+```
+
+Interpretation of Quadratic model: 
+* P value of the quadratic model indicates that the model is significant as the p vale is less than 0.05, however being very close to zero also means that we need to reject the null hypotheses. Hence, we look at the r squared value 0.8807, its suggest that the model is more significant than linear model
+\* Histogram has improved but still there are some residuals.
+\* QQ plots seems normal except some residuals, while acf and pcf model is improved but still some lags are significant.
+\* Overall results has been improved as compare to linear model.
+* If the Sig. value of the Shapiro-Wilk Test is greater than 0.05, the data is normal. If it is below 0.05, the data significantly deviate from a normal distribution.
+
+# Seasonal model:
+
+```{r}
+# using frequency =7
+library(TSA)
+s1=season(ASX1) # period added to improve table display and this line sets up indicators
+model2=lm(ASX1~s1) # -1 removes the intercept term
+summary(model2)
+ # there is no seasonality, r squared value is negative, its underfitting.
+## Residual analysis
+#data points above the line, the residual is positive, and for data points below the line, the residual is negative. The closer a data point's residual is to 0, the better the fit.
+res.model2 = rstudent(model2)
+# win.graph(width=4.875, height=2.5,pointsize=8) # Use this for Windows computers
+#x11() # Use this for Mac computers
+par(mfrow=c(2,2))
+plot(y = res.model2, x = as.vector(time(ASX1)),xlab = 'Time in days', ylab='Standardized Residuals',type='l',main = "Standardised residuals from quadratic model.")
+
+hist(res.model2,xlab='Standardized Residuals', main = "Histogram of standardised residuals.")
+qqnorm(y=res.model2, main = "QQ plot of standardised residuals.")
+qqline(y=res.model2, col = 2, lwd = 1, lty = 2)  #"QQ line of standardised residuals")
+shapiro.test(res.model2)  # shapiro of standardised residuals")
+#If the Sig. value of the Shapiro-Wilk Test is greater than 0.05, the data is normal. If it is below 0.05, the data significantly deviate from a normal distribution.
+acf(res.model2, main = "ACF of standardized residuals.")
+pacf(res.model2, main = "PACF of standardized residuals.")
+par(mfrow=c(1,1))
+```
+
+Interpretation of seasonal model : 
+* here  p value is greater than 0.5, fail to reject the null hypothesis, indicates Insignificant model.
+*data points above the line, the residual is positive, and for data points below the line, the residual is negative. The closer a data point's residual is to 0, the better the fit.
+\* Histogram has not improved but still there are many residuals.
+\* QQ plots depicts that graph is not normal and insignificant, while acf model is improved but still some lags are significant.
+\* overall results has not been improved.
+
+# Fitting Harmonic Model
+
+```{r}
+
+har.=harmonic(ASX1,0.45)
+model.ASX1.har=lm(ASX1~har.)
+summary(model.ASX1.har)
+# ploting graph:
+
+plot(ts(fitted(model.ASX1.har)), ylim = c(min(c(fitted(model.ASX1.har),
+                                                 as.vector(ASX1))), max(c(fitted(model.ASX1.har),as.vector(ASX1)))),
+     ylab='Closed Price' , main = "Changes in the closing price of a share", type="l",lty=2,col="red")
+lines(as.vector(ASX1),type="o")
+
+# Residual analysis
+#data points above the line, the residual is positive, and for data points below the line, the residual is negative. The closer a data point's residual is to 0, the better the fit.
+res.model.ASX1.har = rstudent(model.ASX1.har)
+# win.graph(width=4.875, height=2.5,pointsize=8) # Use this for Windows computers
+#x11() # Use this for Mac computers
+par(mfrow=c(2,2))
+plot(y = res.model.ASX1.har, x = as.vector(time(ASX1)),xlab = 'Time in days', ylab='Standardized Residuals',type='l',main = "Standardised residuals from quadratic model.")
+
+hist(res.model.ASX1.har,xlab='Standardized Residuals', main = "Histogram of standardised residuals.")
+qqnorm(y=res.model.ASX1.har, main = "QQ plot of standardised residuals.")
+qqline(y=res.model.ASX1.har, col = 2, lwd = 1, lty = 2)  #"QQ line of standardised residuals")
+shapiro.test(res.model.ASX1.har)  # shapiro of standardised residuals")
+acf(res.model.ASX1.har, main = "ACF of standardized residuals.")
+pacf(res.model.ASX1.har, main = "PACF of standardized residuals.")
+par(mfrow=c(1,1))
+
+```
+
+Interpretation of harmonic model : 
+\* As we see that there is no seasonally, harmonic model cannot be used for the predication.
+Hence P value of the harmonic model suggest that the model is insignificant as the p vale is more than 0.05.
+There is no seasonality and also missing values for har.cos which confirms that the model is insignificant.
+\* Histogram has not improved but still there are many residuals.
+\* QQ plots depicts that graph is not normal and insignificant, while acf model is improved but still some lags are significant.
+\* Overall results has been not improved.
+
+# Forecasting for prediction next five predictions:
+
+```{r}
+library(ggplot2)
+# after 144, five next days will be 145 to 149
+t = c(145,146,147,148,149)
+t2 = t^2
+new = data.frame(t,t2)
+forecast = predict(model.ASX1.qa, new, interval = "prediction")
+print(forecast)
+```
+
+# Result :
+Interpretation of the Residual Analysis of Quadratic Model:
+
+According to above used model, Quadratic model suits best.
+so for forecasting we are using quadratic model.
+*Based on fitting each of the model, we can confirm that, the quadratic trend model successfully follows the declining pattern of the original series.* Quadratic trend model provides the most accurate prediction when compare to the harmonic and linear progression model.
+Data used for predicting changes in the changes in the closing price of a share in a year.
+The mean value in the time series is not constant, which implies, the trend component is not nullified.
+*The seasonality effect is minimal which implies that there is not trend or seasonal patterns.* Plot of Residuals over time: The scatter observed looks does not look random.
+*Histogram: We do not see a smooth bell shaped cure representing normal distribution.* Quantile-quantile (QQ-plot): Tailing away from the straight line pattern is observed at the low and high ends.This is not what we expect form a white noise process.
+*Sample Autocorrelation Function (ACF): The ACF plot observed displays correlation values higher than the confidence interval at several lags.* Shapiro-Wilk Test: We get p-value of 0.6493.
+However the shapiro test contradicts the previous analysis and we conclude not to reject the null hypothesis that the stochastic component of this model is normally distributed
+
+##Best Model
+
+#In terms of considering both the models presented above, we can conclude that the quadratic model is a better fit by taking into consideration the coefficient of determination namely adjusted R\^2 and as it better describes the variation in the series.
+#However, since both the model fail to cover all the trend in the series and the residual analysis suggest that neither of the series are the best fit.
+Moreover, analysis can be done, specially by considering the ARIMA model as both signs of both AR and MA can be seen in the time series presented above.
+
+# References:
+1. "Class notes"> weel 1 and 2>module 1 and 2"
+2. "Time series-Introduction>Idit Cohen>
+https://towardsdatascience.com/time-series-introduction-7484bc25739a#:~:text=A%20time%20series%20is%20a%20series%20of%20data%20points%20ordered,the%20future%20is%20being%20predicted.
+
+#
+
